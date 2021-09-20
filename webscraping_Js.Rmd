@@ -1,0 +1,165 @@
+---
+title: "WEB_scraping_Practice_R_JS"
+author: "Jay Kim"
+date: "9/2/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rvest) # read_html
+```
+
+```{r}
+# 2021 freshman retention rate at national inivresites
+
+url <- "https://www.transfermarkt.com/spieler-statistik/wertvollstespieler/marktwertetop"
+web_page <- read_html(url)
+
+player_name <- web_page %>% 
+  html_elements("#yw1 .spielprofil_tooltip") %>% 
+  html_text()
+head(player_name)
+ 
+```
+
+
+```{r}
+
+Sys.setlocale(category = "LC_ALL",
+              locale ="korean")
+
+```
+
+
+```{r}
+player_name <- web_page %>% 
+  html_elements("#yw1 .spielprofil_tooltip") %>% 
+  html_text()
+
+player_name
+```
+
+
+```{r}
+player_club <- web_page %>% 
+  html_elements("#yw1 .vereinprofil_tooltip") %>% 
+  html_children() %>% 
+  html_attr("alt")
+
+player_club
+```
+
+```{r}
+#.flaggenrahmen
+
+player_county <- web_page %>% 
+  html_elements("#yw1 .zentriert:nth-child(4)")   
+ 
+player_county <- player_county[-1]
+print(player_county[6], width = 1000) # two img for two country
+length(html_children(player_county[6])) #<td> <img> 1 <br> 2 <img> 3</td> # 3 length
+
+# no dup
+
+count_dup <-  sapply(player_county, 
+                     function (x) length(html_children(x)))
+which(count_dup >1)
+
+count_no_dup <-  sapply(player_county, 
+                     function (x) html_attr(html_children(x)[1], "alt"))
+
+
+count_no_dup
+
+```
+
+
+```{r}
+#market value
+player_value <- web_page %>% 
+  html_elements("#yw1 b") %>% 
+   html_text() %>% 
+  stringr::str_extract("\\d+[.]\\d\\d") %>% 
+  as.numeric()
+
+player_value
+
+
+```
+
+## Get all pages
+
+```{r}
+ 
+
+base_url <- "https://www.transfermarkt.com/marktwertetop/wertvollstespieler?ajax=yw1&page=" # remove page number here
+url <- paste0(base_url,1:3)
+
+ 
+
+#lcopylink address
+data_scrap <-  function(url){
+  
+  Sys.sleep(2)
+    web_page <- read_html(url)
+    
+  player_name <- web_page %>% 
+  html_elements("#yw1 .spielprofil_tooltip") %>% 
+  html_text()
+  player_name
+  
+  
+  player_club <- web_page %>% 
+  html_elements("#yw1 .vereinprofil_tooltip") %>% 
+  html_children() %>% 
+  html_attr("alt")
+  player_club
+  
+  
+  player_county <- web_page %>% 
+  html_elements("#yw1 .zentriert:nth-child(4)")   
+ 
+  player_county <- player_county[-1]
+ # print(player_county[6], width = 1000) # two img for two country
+  length(html_children(player_county[6])) #<td> <img> 1 <br> 2 <img> 3</td> # 3 length
+# no dup
+  count_dup <-  sapply(player_county, 
+                    function (x) length(html_children(x)))
+  which(count_dup >1)
+ count_no_dup <-  sapply(player_county, 
+                     function (x) html_attr(html_children(x)[1], "alt"))
+count_no_dup
+
+player_value <- web_page %>% 
+  html_elements("#yw1 b") %>% 
+   html_text() %>% 
+  stringr::str_extract("\\d+[.]\\d\\d") %>% 
+  as.numeric()
+ player_value
+ 
+ DF_all <- data.frame(name=player_name, club=player_club, national =count_no_dup, value=player_value)
+
+print(DF_all)  
+  
+}
+
+result_data <- lapply(url, data_scrap)
+play_all <- unlist(result_data)
+
+play_all
+
+
+```
+
+
+```{r}
+
+DF <- data.frame(name=player_name, club=player_club, national =count_no_dup, value=player_value)
+DF
+
+write.csv(DF, "soccerplayervalue.csv", row.names = FALSE, fileEncoding = "UTF-8")
+```
